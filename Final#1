@@ -1,0 +1,236 @@
+import random
+
+MAX_LINES = 4
+MAX_BET = 1000
+MIN_BET = 1
+
+ROWS = 4
+COLS = 4
+
+symbol_count = {
+    "A": 4,
+    "B": 6,
+    "C": 8,
+    "D": 10
+}
+
+symbol_value = {
+    "A": 10, 
+    "B": 8,
+    "C": 6,
+    "D": 4
+}
+
+payout_table = {
+    "AAAAAA": 4000,
+    "BBBBBB": 2000,
+    "CCCCCC": 1000,
+    "DDDDDD": 500,
+    "AAAAA": 400,
+    "BBBBB": 200,
+    "CCCCC": 100,
+    "DDDDD": 50,
+    "AAAA": 40,
+    "BBBB": 20,
+    "CCCC": 10,
+    "DDDD": 5,
+    "AAA": 4,
+    "BBB": 2,
+    "CCC": 1,
+    "DDD": 1
+}
+
+adjustment_factor = (0.01 / 0.5) ** (1 / 10)
+
+def adjust_payouts(payout_table, num_spins):
+    adjusted_payout_table = {}
+    for combination, payout in payout_table.items():
+        adjusted_payout = payout * (1 - (num_spins / 10))
+        adjusted_payout_table[combination] = adjusted_payout
+    return adjusted_payout_table
+
+
+def check_winnings(columns, lines, bet, values, payout_table):
+    winnings = 0
+    winning_lines = []
+    winning_combinations = [] 
+    
+    for line in range(lines):
+        symbol = columns[0][line]
+        for column in columns:
+            symbol_to_check = column[line]
+            
+            if symbol != symbol_to_check:
+                break
+        else:
+            winnings += values[symbol] * bet * adjustment_factor
+            winning_lines.append(line + 1)
+            
+            if symbol in payout_table:
+               winnings += payout_table[symbol] * bet
+               winning_combinations.append(symbol)
+               
+               # Check for winning combinations in payout_table
+            combination = "".join(columns[i][line] for i in range(len(columns)))
+            if combination in payout_table:
+                winnings += payout_table[combination] * bet
+                winning_combinations.append(combination)
+
+             # Check diagonal lines (top-left to bottom-right)
+    symbol = columns[0][0] 
+    for i in range(len(columns)):
+        symbol_to_check = columns[i][i]
+        if symbol != symbol_to_check:
+            break
+    else:
+        winnings += values[symbol] * bet * adjustment_factor
+        winning_lines.append("Diagonal (top-left to bottom-right)")
+
+    # Check diagonal lines (top-right to bottom-left)
+    symbol = columns[0][len(columns) - 1]
+    for i in range(len(columns)):
+        symbol_to_check = columns[i][len(columns) - 1 - i]
+        if symbol != symbol_to_check:
+            break
+    else:
+        winnings += values[symbol] * bet * adjustment_factor
+        winning_lines.append("Diagonal (top-right to bottom-left)")
+
+    # Check horizontal lines
+    for line in range(lines):
+        symbol = columns[line][0]
+        for i in range(1, len(columns[line])):
+            symbol_to_check = columns[line][i]
+            if symbol != symbol_to_check:
+                break
+        else:
+            winnings += values[symbol] * bet * adjustment_factor
+            winning_lines.append(f"Horizontal Line {line + 1}")
+
+    return winnings, winning_lines, winning_combinations
+
+
+def get_slot_machine_spin(rows, cols, symbols):
+    all_symbols = []
+    for symbol, symbol_count in symbols.items():
+        for _ in range(symbol_count):
+            all_symbols.append(symbol)
+
+    columns = []
+    for _ in range(cols):
+        column = random.sample(all_symbols, rows)
+        columns.append(column)
+
+    return columns
+
+
+def print_slot_machine(columns):
+    for row in range(len(columns[0])):
+        for i, column in enumerate(columns):
+            if i != len(columns) - 1:
+                print(column[row], end=" | ")
+            else:
+                print(column[row], end="")
+        print()
+
+#add a deposit to balance
+def deposit(balance):
+    while True:
+        amount_str = input("What would you like to deposit? $")
+        if amount_str.isdigit():
+            amount = int(amount_str)
+            if amount > 0:
+                balance += amount    
+                print(f"Deposited ${amount}. New balance is ${balance}")
+                break
+            else:
+                print("Depsosit must be greater than 0.")
+        else:
+            print("Please enter a number.")
+
+    return balance
+
+
+def get_number_of_lines():
+    while True:
+        lines = input(
+            f"Enter the number of lines to bet on (1-{MAX_LINES}): ")
+        try:
+            lines = int(lines)
+            if 1 <= lines <= MAX_LINES:
+                break
+            else:
+                print("Enter a valid number of lines.")
+        except ValueError:
+                print("Please enter a valid integer.")
+
+    return lines
+
+
+def get_bet():
+    while True:
+        amount = input(f"What would you like to bet on each line? (${MIN_BET}-{MAX_BET}): ")
+        if amount.isdigit():
+            amount = int(amount)
+            if MIN_BET <= amount <= MAX_BET:
+                break
+            else:
+                print(f"Entry must be between {MIN_BET} - ${MAX_BET}.")
+        else:
+            print("Please enter a valid integer.")
+        
+    return amount
+
+
+def spin(balance):
+    lines = get_number_of_lines()
+    while True:
+        bet = get_bet()
+        total_bet = bet * lines
+
+        if total_bet > balance:
+            print(f"You do not have enough to bet that amount, your current balance is: ${balance}")
+        else:
+            break
+
+    print(f"You are betting ${bet} on {lines} lines. Total bet is equal to: ${total_bet}")
+
+    slots = get_slot_machine_spin(ROWS, COLS, symbol_count)
+    print_slot_machine(slots)
+    winnings, winning_lines, winning_combinations = check_winnings(slots, lines, bet, symbol_value, payout_table)
+    winnings = round(winnings)  # Round the winnings to the nearest whole number
+    print(f"You won ${winnings}.")
+    if winning_lines:
+        print("You won on lines:", *winning_lines)
+    return winnings - total_bet
+
+def print_payout_table(payout_table):
+    print("Payout Table:")
+    print("-------------")
+    for combination, payout in payout_table.items():
+        print(f"{combination}: {payout} coins")
+
+
+def main():
+    balance = 0 #initialize balance to zero
+    while True:
+        print(f"Current balance is ${balance}")
+        if balance == 0:
+            print("Please make deposit to play.")
+            balance = deposit(balance)
+        else:                        
+            answer = input("Press enter to play, p for payout table, (q to quit),  d to deposit.")
+            if answer == "q":
+              break
+            elif answer == "d":
+              balance = deposit(balance)
+            elif answer == "p":
+              print_payout_table(payout_table)
+            else: 
+              balance +=spin(balance)
+    
+
+    print(f"You left with ${balance}")
+    
+main()
+    
